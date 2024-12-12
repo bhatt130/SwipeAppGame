@@ -15,6 +15,7 @@ struct ContentView: View {
     
     //variables for the mini challenges
     @State private var loserName: String?
+    @State private var assignedChallenge: String?
     @State private var miniChallenge: [String] = [
         "Do pushups with good form until timer expires",
         "Sit on someone's lap and sing a chorus of any song until timer expires",
@@ -53,7 +54,16 @@ struct ContentView: View {
 
                 Text("Winner: \(winner)")
                     .font(.title)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.green)
+                
+               //added display text for UI
+                if let challenge = assignedChallenge {
+                    Text(challenge)
+                        .font(.headline)
+                        .padding()
+                        .foregroundColor(.red)
+                }
+                
             } else {
                 Text(questions[currentQuestionIndex])
                     .font(.title)
@@ -130,9 +140,9 @@ struct ContentView: View {
         print("Loser: \(loser)")
         //generate a random integer within the range of the array declared indices
         let randomChallengeIndex = Int.random(in: 0..<miniChallenge.count)
-        let assignedChallenge = miniChallenge[randomChallengeIndex]
+        assignedChallenge = "Assigned challenge to \(loser): \(miniChallenge[randomChallengeIndex])"
         //alert displayed
-        print("Assigned Challenge to \(loser): \(assignedChallenge)")
+        print(assignedChallenge ?? "")
     }
 
     func endGame() {
