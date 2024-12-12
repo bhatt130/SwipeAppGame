@@ -12,6 +12,17 @@ struct ContentView: View {
     @State private var isGameOver = false
     @State private var winner: String = ""
     @State private var winnerImage: Image? = nil
+    
+    //variables for the mini challenges
+    @State private var loserName: String?
+    @State private var miniChallenge: [String] = [
+        "Do pushups with good form until timer expires",
+        "Sit on someone's lap and sing a chorus of any song until timer expires",
+        "Make eye-contact with someone with water in your mouth until timer expires",
+        "Say the entire alphabet in reverse order until timer expires",
+        "Let a friend post a story/ status on social media for you",
+        "Text 'I miss you' to an ex friend or partner"
+    ]
 
     let questions = [
         "Who is most likely to get famous for something wrong?",
@@ -106,6 +117,23 @@ struct ContentView: View {
 
         return nil
     }
+    
+    func challengeLoser() {
+        //guard condition else - if statement is false, execute the else statement
+        guard let winner = findWinner()?.name else { return } //return early if no winner found
+        for friend in friendsLeft {
+            loserName = friend
+            break //first remaining friend will be the loser by default
+        }
+        
+        guard let loser = loserName else { return }
+        print("Loser: \(loser)")
+        //generate a random integer within the range of the array declared indices
+        let randomChallengeIndex = Int.random(in: 0..<miniChallenge.count)
+        let assignedChallenge = miniChallenge[randomChallengeIndex]
+        //alert displayed
+        print("Assigned Challenge to \(loser): \(assignedChallenge)")
+    }
 
     func endGame() {
         isGameOver = true
@@ -119,6 +147,7 @@ struct ContentView: View {
             winnerImage = nil
             print("Game Over - No Winner")
         }
+        challengeLoser() //function called for loser challenges
     }
 }
 
