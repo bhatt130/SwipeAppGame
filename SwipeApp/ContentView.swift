@@ -1,39 +1,23 @@
 import SwiftUI
 
-// Main content view
 struct ContentView: View {
-    @State private var friendsLeft = ["Birking1", "Cat1", "Frenchie1"]
-    private var friendImages: [String: Image] {
-        Dictionary(uniqueKeysWithValues: friendsLeft.map { ($0, Image($0)) })
-    }
-    @State private var offsets: [CGSize]
-    @State private var currentQuestionIndex = 0
+    @State private var friendsLeft: [String] = ["Frenchie1", "Cat1", "Birking1"]
+    @State private var friendImages: [String: Image] = [
+        "Frenchie1": Image("Frenchie1"),
+        "Cat1": Image("Cat1"),
+        "Birking1": Image("Birking1")
+    ]
     @State private var scores: [String: Int] = [:]
+    @State private var offsets: [CGSize] = [CGSize](repeating: .zero, count: 3)
+    @State private var currentQuestionIndex = 0
     @State private var isGameOver = false
-    @State private var winner: String = ""
+    @State private var winner = ""
     @State private var winnerImage: Image? = nil
-    
-    //variables for the mini challenges
-    @State private var loserName: String?
-    @State private var assignedChallenge: String?
-    @State private var miniChallenge: [String] = [
-        "Do pushups with good form until timer expires",
-        "Sit on someone's lap and sing a chorus of any song until timer expires",
-        "Make eye-contact with someone with water in your mouth until timer expires",
-        "Say the entire alphabet in reverse order until timer expires",
-        "Let a friend post a story/ status on social media for you",
-        "Text 'I miss you' to an ex friend or partner"
-    ]
+    @State private var loserName: String? = nil
+    @State private var assignedChallenge: String? = nil
 
-    let questions = [
-        "Who is most likely to get famous for something wrong?",
-        "Who is most likely to get cancelled?",
-        "Who is most likely to succeed?"
-    ]
-
-    init() {
-        self._offsets = State(initialValue: Array(repeating: .zero, count: 3))
-    }
+    let questions = ["Who is most likely to host the best party?", "Who is most likely to bring snacks?"]
+    let challenges = ["Sing a song", "Do 10 push-ups", "Dance for 30 seconds"]
 
     var body: some View {
         VStack {
@@ -55,15 +39,18 @@ struct ContentView: View {
                 Text("Winner: \(winner)")
                     .font(.title)
                     .foregroundColor(.green)
-                
-               //added display text for UI
-                if let challenge = assignedChallenge {
-                    Text(challenge)
+
+                if let loserName = loserName, let challenge = assignedChallenge {
+                    Text("Loser: \(loserName)")
                         .font(.headline)
-                        .padding()
                         .foregroundColor(.red)
+                        .padding(.top)
+
+                    Text("Challenge: \(challenge)")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                        .padding()
                 }
-                
             } else {
                 Text(questions[currentQuestionIndex])
                     .font(.title)
@@ -71,7 +58,7 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
 
                 ZStack {
-                    ForEach(friendsLeft.indices.reversed(), id: \.self) { index in
+                    ForEach(friendsLeft.indices.reversed(), id: \ .self) { index in
                         FriendCardView(
                             image: friendImages[friendsLeft[index]] ?? Image("placeholder"),
                             offset: $offsets[index],
@@ -88,112 +75,74 @@ struct ContentView: View {
     }
 
     func handleSwipe(for friend: String, isYes: Bool) {
-        if isYes {
-            scores[friend, default: 0] += 1
-            print("Updated Scores: \(scores)")
-        }
-
         if let index = friendsLeft.firstIndex(of: friend) {
             friendsLeft.remove(at: index)
             offsets.remove(at: index)
-        }
 
-        if friendsLeft.isEmpty {
-            currentQuestionIndex += 1
-            if currentQuestionIndex < questions.count {
-                resetFriends()
-            } else {
-                endGame()
+            if isYes {
+                scores[friend, default: 0] += 1
+            }
+
+            // Reinitialize the offsets to match the new count of friendsLeft
+            offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
+
+            if friendsLeft.isEmpty {
+                determineWinner()
+                challengeLoser()
             }
         }
     }
 
-    func resetFriends() {
-        friendsLeft = ["Birking1", "Cat1", "Frenchie1"]
-        offsets = Array(repeating: .zero, count: friendsLeft.count)
-    }
 
-    func findWinner() -> (name: String, image: Image?)? {
-        guard !scores.isEmpty else { return nil }
-
-        // Determine the friend(s) with the highest score
-        let maxScore = scores.values.max() ?? 0
-        let topScorers = scores.filter { $0.value == maxScore }.keys
-
-        if let winnerName = topScorers.first {
-            print("Winner Found: \(winnerName)")
-            return (name: winnerName, image: friendImages[winnerName])
+    func determineWinner() {
+        if let topScorer = scores.max(by: { $0.value < $1.value }) {
+            winner = topScorer.key
+            winnerImage = friendImages[winner]
+            isGameOver = true
         }
-
-        return nil
     }
-    
+
     func challengeLoser() {
-        //guard condition else - if statement is false, execute the else statement
-        guard let winner = findWinner()?.name else { return } //return early if no winner found
-        for friend in friendsLeft {
-            loserName = friend
-            break //first remaining friend will be the loser by default
+        if let lowestScorer = scores.min(by: { $0.value < $1.value }) {
+            loserName = lowestScorer.key
+            assignedChallenge = challenges.randomElement()
         }
-        
-        guard let loser = loserName else { return }
-        print("Loser: \(loser)")
-        //generate a random integer within the range of the array declared indices
-        let randomChallengeIndex = Int.random(in: 0..<miniChallenge.count)
-        assignedChallenge = "Assigned challenge to \(loser): \(miniChallenge[randomChallengeIndex])"
-        //alert displayed
-        print(assignedChallenge ?? "")
-    }
-
-    func endGame() {
-        isGameOver = true
-
-        if let winnerData = findWinner() {
-            winner = winnerData.name
-            winnerImage = winnerData.image
-            print("Game Over - Winner: \(winner)")
-        } else {
-            winner = "No Winner"
-            winnerImage = nil
-            print("Game Over - No Winner")
-        }
-        challengeLoser() //function called for loser challenges
     }
 }
 
 struct FriendCardView: View {
     var image: Image
     @Binding var offset: CGSize
-    var onRemove: (Bool) -> Void // Passes swipe direction (true for yes, false for no)
+    var onRemove: (Bool) -> Void
 
     var body: some View {
         image
             .resizable()
-            .scaledToFill()
+            .scaledToFit()
             .frame(width: 300, height: 400)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .cornerRadius(20)
             .shadow(radius: 5)
             .offset(offset)
             .gesture(
                 DragGesture()
                     .onChanged { gesture in
-                        self.offset = gesture.translation
+                        offset = gesture.translation
                     }
                     .onEnded { _ in
-                        withAnimation(.spring()) {
-                            if self.offset.width > 100 {
-                                print("Swiped yes")
-                                self.offset = CGSize(width: 1000, height: 0)
-                                onRemove(true) // Right swipe
-                            } else if self.offset.width < -100 {
-                                print("Swiped no")
-                                self.offset = CGSize(width: -1000, height: 0)
-                                onRemove(false) // Left swipe
-                            } else {
-                                self.offset = .zero
-                            }
+                        if offset.width > 100 {
+                            onRemove(true)
+                        } else if offset.width < -100 {
+                            onRemove(false)
                         }
+                        //offset = .zero
                     }
             )
+            .animation(.spring(), value: offset)
+    }
+}
+
+struct SwipeAppView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
     }
 }
