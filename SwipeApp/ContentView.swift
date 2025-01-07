@@ -81,32 +81,68 @@ struct ContentView: View {
 
             if isYes {
                 scores[friend, default: 0] += 1
+            //for left swipe loser
+            } else {
+                scores[friend, default: 0] -= 1
             }
 
             // Reinitialize the offsets to match the new count of friendsLeft
             offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
 
             if friendsLeft.isEmpty {
-                determineWinner()
-                challengeLoser()
+                // loop through for the next question in array
+                //check if last questions reached first
+                if currentQuestionIndex < questions.count - 1 {
+                    currentQuestionIndex += 1
+                    // new function to reset
+                    resetforNextQuestion()
+                } else {
+                    determineWinner()
+                    challengeLoser()
+                }
             }
         }
     }
 
-
+    func resetforNextQuestion() {
+        // all the key (friends) are restored for the next question
+        //.keys returns the collection of all the keys in the dictionary
+        friendsLeft = Array(friendImages.keys)
+        //new array of CGSize objects of 2d size to store the dragging offsets
+        //all elements in array initialized to zero first
+        //.count helps count from the 'toy' mess. Counts num of toys or friends
+        //to put in each box. The boxes are like offsets.
+        offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
+    }
     func determineWinner() {
+        //scores is a dictionary and the key-value matching pair
+        //with the highest score is found
+        //$0 (1st arg) vs $1 (2nd arg) and finds max between them
+        //replaced long form of:
+        //scores.ax(by: { pair1, pair 2 in pair1.value < pair2.value })
+        //if max exists, assign key value to topScorer
+        //if let codn will return safely if scores is empty
         if let topScorer = scores.max(by: { $0.value < $1.value }) {
             winner = topScorer.key
+            //corresponding image from dictionary found
             winnerImage = friendImages[winner]
             isGameOver = true
         }
     }
 
     func challengeLoser() {
-        if let lowestScorer = scores.min(by: { $0.value < $1.value }) {
-            loserName = lowestScorer.key
+        //handling new case where there are multiple losers
+        //1 loser will be chosen at random for the challenge
+        if let minScore = scores.values.min() {
+            let lowestScore = scores.filter { $0.value == minScore}.keys
+            loserName = lowestScore.randomElement()
+            print("Loser: \(loserName)")
             assignedChallenge = challenges.randomElement()
         }
+        /*if let lowestScorer = scores.min(by: { $0.value < $1.value }) {
+            loserName = lowestScorer.key
+            assignedChallenge = challenges.randomElement()
+        }*/
     }
 }
 
