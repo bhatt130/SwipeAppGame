@@ -42,7 +42,16 @@ struct ContentView: View {
             if isGameOver {
                 GameOverView(winner: winner, winnerImage: winnerImage, loserName: loserName, assignedChallenge: assignedChallenge)
             } else if isGameStart {
-                GameView(playerNames: playerNames, playerPhotos: playerPhotos)
+                GameView(playerNames: playerNames,
+                         playerPhotos: playerPhotos,
+                         questions: questions,
+                         friendsLeft: $friendsLeft,
+                         friendImages: $friendImages,
+                         scores: $scores,
+                         currentQuestionIndex: $currentQuestionIndex,
+                         isGameOver: $isGameOver,
+                         handleSwipe: handleSwipe,
+                         onGameOver: determineWinner)
             } else {
                 StartScreen(
                     playerNames: $playerNames,
@@ -53,11 +62,30 @@ struct ContentView: View {
             }
             Spacer()
         }
+        //popup added which was previously not implemented
+        .sheet(isPresented: $showRules) {
+            VStack {
+                Text("Game Rules")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text("Swipe right for yes, left for no. Points are calculated to find the most boring and adventurous people. Loser will be assigned a random challenge.")
+                    .multilineTextAlignment(.center)
+                    .padding()
+                Button("Close") {
+                    showRules = false
+                }
+                .padding()
+                .background(Color.red)
+                .foregroundColor(Color.white)
+                .cornerRadius(10)
+            }
+            .padding()
+        }
         .padding()
     }
 
     // MARK: - Helper Functions
-    func handleSwipe(for friend: String, isYes: Bool) {
+    private func handleSwipe(for friend: String, isYes: Bool) {
         if let index = friendsLeft.firstIndex(of: friend) {
             friendsLeft.remove(at: index)
             offsets.remove(at: index)
@@ -68,15 +96,17 @@ struct ContentView: View {
                 scores[friend, default: 0] -= 1
             }
 
-            offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
+            //offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
 
             if friendsLeft.isEmpty {
                 if currentQuestionIndex < questions.count - 1 {
                     currentQuestionIndex += 1
+                    friendsLeft = Array(friendImages.keys)
                     resetForNextQuestion()
                 } else {
                     determineWinner()
-                    challengeLoser()
+                    //determineWinner()
+                    //challengeLoser()
                 }
             }
         }
@@ -84,17 +114,9 @@ struct ContentView: View {
 
     func resetForNextQuestion() {
         friendsLeft = Array(friendImages.keys)
-        offsets = [CGSize](repeating: .zero, count: friendsLeft.count)
+        offsets = Array(repeating: .zero, count: friendsLeft.count)
     }
-
-    func determineWinner() {
-        if let topScorer = scores.max(by: { $0.value < $1.value }) {
-            winner = topScorer.key
-            winnerImage = friendImages[winner]
-            isGameOver = true
-        }
-    }
-
+    
     func challengeLoser() {
         if let minScore = scores.values.min() {
             let lowestScore = scores.filter { $0.value == minScore }.keys
@@ -102,6 +124,15 @@ struct ContentView: View {
             assignedChallenge = challenges.randomElement()
         }
     }
+    func determineWinner() {
+        if let topScorer = scores.max(by: { $0.value < $1.value }) {
+            winner = topScorer.key
+            winnerImage = friendImages[winner]
+            challengeLoser()
+            isGameOver = true
+        }
+    }
+
 }
 
 // MARK: - Subviews
@@ -111,6 +142,9 @@ struct StartScreen: View {
     var onStart: () -> Void
     var onShowRules: () -> Void
 
+    // predefined avatars
+    let avatarOptions = ["Avatar1", "Avatar2", "Avatar3", "Avatar4"]
+    
     var body: some View {
         VStack(spacing: 20) {
             Text("Boring? Drink.")
@@ -124,6 +158,26 @@ struct StartScreen: View {
                     TextField("Player \(index + 1) Name", text: $playerNames[index])
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .frame(width: 200)
+                    
+                    // Avatar Selection
+                    Menu {
+                        ForEach(avatarOptions, id: \.self) { avatar in
+                            Button(action: {
+                                playerPhotos[playerNames[index]] = Image(avatar)
+                            }) {
+                                Text(avatar)
+                            }
+                        }
+                    } label: {
+                        if let image = playerPhotos[playerNames[index]] {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 50, height: 50)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.gray, lineWidth: 1
+                        }
+                    }
                     Button(action: { choosePhoto(for: index) }) {
                         if let image = playerPhotos[playerNames[index]] {
                             image
@@ -207,11 +261,48 @@ struct GameOverView: View {
 struct GameView: View {
     var playerNames: [String]
     var playerPhotos: [String: Image]
-
+    var questions: [String]
+    @Binding var friendsLeft: [String]
+    @Binding var friendImages: [String: Image]
+    @Binding var scores: [String: Int]
+    @Binding var currentQuestionIndex: Int
+    @Binding var isGameOver: Bool
+    var handleSwipe: (String, Bool) -> Void
+    var onGameOver: () -> Void
+    
+    //added offsets variable
+    //CGSize is a struct in Swift repping a width & height value
+    //here we use it to track the X & Y displacement of each swipe
+    //each card gets an offset to store and update offset independently
+    @State private var offsets: [CGSize] = Array(repeating: .zero, count: 3)
     var body: some View {
-        Text("Game View")
+        VStack {
+            if currentQuestionIndex < questions.count {
+                Text(questions[currentQuestionIndex])
+                    .font(.headline)
+                    .padding()
+                ZStack {
+                    ForEach(friendsLeft.indices, id: \.self) { index in
+                        if let image = friendImages[friendsLeft[index]] {
+                            FriendCardView(
+                                image: image,
+                                //offset zero made no swipes
+                                offset: $offsets[index],
+                                onRemove: { isYes in
+                                    handleSwipe(friendsLeft[index], isYes)
+                                }
+                            )
+                            .zIndex(Double(friendsLeft.count - index))
+                        }
+                    }
+                }
+            } else {
+                Text("Calculating results...")
+            }
+        }
     }
 }
+
 
 struct FriendCardView: View {
     var image: Image
@@ -237,6 +328,8 @@ struct FriendCardView: View {
                         } else if offset.width < -100 {
                             onRemove(false)
                         }
+                        offset = .zero
+                        //reset position after removal
                     }
             )
             .animation(.spring(), value: offset)
